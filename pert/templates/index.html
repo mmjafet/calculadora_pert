@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Calculadora PERT</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container mt-5">
+    <h1 class="text-center">Calculadora PERT</h1>
+    <form id="pertForm">
+        <div id="activities">
+            <div class="form-group row">
+                <div class="col">
+                    <input type="text" class="form-control" name="name" placeholder="Nombre de la Actividad">
+                </div>
+                <div class="col">
+                    <input type="text" class="form-control" name="predecessor" placeholder="Predecesor(es) (separados por comas)">
+                </div>
+                <div class="col">
+                    <input type="number" class="form-control" name="optimistic" placeholder="Optimista" step="0.01">
+                </div>
+                <div class="col">
+                    <input type="number" class="form-control" name="most_probable" placeholder="Más Probable" step="0.01">
+                </div>
+                <div class="col">
+                    <input type="number" class="form-control" name="pessimistic" placeholder="Pesimista" step="0.01">
+                </div>
+            </div>
+        </div>
+        <button type="button" class="btn btn-primary" id="addActivity">Agregar Actividad</button>
+        <button type="submit" class="btn btn-success">Calcular</button>
+    </form>
+    <div class="mt-5">
+        <h3>Resultados</h3>
+        <p><strong>Ruta Crítica:</strong> <span id="criticalPath"></span></p>
+        <p><strong>Duración:</strong> <span id="duration"></span></p>
+        <p><strong>Tiempo Óptimo:</strong> <span id="optimalTime"></span></p>
+        <p><strong>Tiempo Esperado:</strong> <span id="expectedTime"></span></p>
+        <img id="graphImg" src="" alt="Gráfico PERT" class="img-fluid">
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+<script>
+document.getElementById('addActivity').addEventListener('click', () => {
+    const activityDiv = document.createElement('div');
+    activityDiv.classList.add('form-group', 'row');
+    activityDiv.innerHTML = `
+        <div class="col">
+            <input type="text" class="form-control" name="name" placeholder="Nombre de la Actividad">
+        </div>
+        <div class="col">
+            <input type="text" class="form-control" name="predecessor" placeholder="Predecesor(es) (separados por comas)">
+        </div>
+        <div class="col">
+            <input type="number" class="form-control" name="optimistic" placeholder="Optimista" step="0.01">
+        </div>
+        <div class="col">
+            <input type="number" class="form-control" name="most_probable" placeholder="Más Probable" step="0.01">
+        </div>
+        <div class="col">
+            <input type="number" class="form-control" name="pessimistic" placeholder="Pesimista" step="0.01">
+        </div>`;
+    document.getElementById('activities').appendChild(activityDiv);
+});
+
+document.getElementById('pertForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const activities = Array.from(document.querySelectorAll('#activities .row')).map(row => {
+        return {
+            name: row.querySelector('input[name="name"]').value || null,
+            predecessor: row.querySelector('input[name="predecessor"]').value || null,
+            optimistic: parseFloat(row.querySelector('input[name="optimistic"]').value) || 0,
+            most_probable: parseFloat(row.querySelector('input[name="most_probable"]').value) || 0,
+            pessimistic: parseFloat(row.querySelector('input[name="pessimistic"]').value) || 0,
+        };
+    });
+
+    try {
+        const response = await fetch('/calculate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ activities })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            document.getElementById('criticalPath').textContent = result.critical_path.join(' -> ');
+            document.getElementById('duration').textContent = result.duration;
+            document.getElementById('optimalTime').textContent = result.optimal_time.toFixed(2);
+            document.getElementById('expectedTime').textContent = result.activities.map(activity => activity.expected).reduce((a, b) => a + b, 0).toFixed(2);
+            document.getElementById('graphImg').src = 'data:image/png;base64,' + result.graph_img;
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+</script>
+</body>
+</html>
